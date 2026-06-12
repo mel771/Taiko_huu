@@ -61,12 +61,12 @@
         .config-item.waiting { border-color: #ffaa00; background: rgba(255, 170, 0, 0.2); animation: blink 0.8s infinite; }
 
         .result-box { background: rgba(20, 24, 35, 0.92); border: 6px solid #ffaa00; padding: 40px; border-radius: 30px; width: 550px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); }
-        .result-title { font-size: 3rem; font-weight: 900; margin-bottom: 20px; background: linear-gradient(90deg, #ffe600, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .result-title { font-size: 3rem; font-weight: 900; margin-bottom: 20px; background: linear-gradient(90deg, #ffe600, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .result-status { font-size: 4rem; font-weight: 900; margin: 20px 0; text-transform: uppercase; letter-spacing: 4px; }
         .status-clear { color: #ff3366; text-shadow: 0 0 20px rgba(255,51,102,0.6); }
         .status-fail { color: #57606f; text-shadow: none; }
 
-        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; z-index: 100; color: #ffaa00; flex-direction: column; }
+        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; color: #fff; z-index: 100; }
 
         @keyframes blink { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     </style>
@@ -423,7 +423,7 @@
             parseTJA(tjaText);
 
         } catch(e) {
-            console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドします");
+            console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドします。");
             
             let mockNotes = [];
             let virtualTime = 1800;
@@ -667,11 +667,12 @@
                 isGoGoTime = currentlyInGoGo;
             }
 
-            // Canvas描画：常に実行（ゲーム中またはタイトル）
+            // Canvas描画：ゲーム中のみ実行
             ctx.clearRect(0, 0, width, height);
             const laneY = height * 0.5; const laneHeight = 150; const hitX = width * 0.16; 
 
-            if (currentScreen === 'game' || currentScreen === 'title') {
+            // ゲーム画面のみに背景描画を限定
+            if (gameState === 'playing') {
                 ctx.fillStyle = isGoGoTime ? 'rgba(255, 90, 90, 0.28)' : 'rgba(25, 25, 35, 0.96)';
                 ctx.fillRect(0, laneY - laneHeight/2, width, laneHeight);
                 
