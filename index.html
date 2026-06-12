@@ -2,391 +2,796 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web 太鼓の達人風 - ジャンル・曲選択対応版</title>
+    <title>Web 太鼓の達人風 - 絶対フリーズ回避版 (エラー自動迎撃システム搭載)</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+        :root {
+            --color-vocaloid: #00ffcc;
+            --color-config: #a0a0a0;
+        }
+
         body {
-            overflow: hidden;
-            background-color: #111;
+            margin: 0; overflow: hidden;
+            background-color: #0f1115; color: #333;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             user-select: none;
         }
-        
-        #gameCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            background: #111;
-        }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #111; }
+
+        .bg-sub-screen { background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%) !important; }
+
+        canvas { display: block; width: 100%; height: 100%; }
 
         .screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            z-index: 10;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            box-sizing: border-box; color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
         }
-        
         .hidden { display: none !important; }
 
-        .screen-ui {
-            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%);
-        }
-
-        .screen-title {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 40px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-
+        #screen-title { background-image: url('./title_bg.png.jpg'); background-size: cover; background-position: center; }
         .flash-text {
-            font-size: 2rem;
-            animation: blink 1s infinite;
-            color: #fff;
-            font-weight: bold;
-            text-shadow: 0 0 15px #ffaa00;
-            cursor: pointer;
-            background: rgba(0,0,0,0.6);
-            padding: 20px 50px;
-            border-radius: 50px;
-            border: 3px solid #ffaa00;
+            font-size: 1.8rem; animation: blink 1.0s infinite; color: #fff;
+            margin-top: 180px; font-weight: bold; text-shadow: 0 0 15px #ffaa00;
+            cursor: pointer; background: rgba(0,0,0,0.6); padding: 12px 40px; border-radius: 50px;
+            border: 3px solid #ffaa00; box-shadow: 0 5px 15px rgba(0,0,0,0.4);
         }
 
+        .menu-container { 
+            display: flex; gap: 15px; padding: 20px; width: 90%; 
+            justify-content: center; align-items: center; flex-wrap: wrap; max-width: 900px;
+        }
         .menu-card {
-            width: 160px;
-            height: 220px;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-weight: 900;
-            font-size: 1.3rem;
-            text-align: center;
-            border: 4px solid #fff;
-            cursor: pointer;
-            color: #fff;
-            margin: 15px;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+            width: 150px; height: 210px; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-weight: 900; font-size: 1.3rem; text-align: center; border: 4px solid #fff; cursor: pointer; color: #fff;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3); transition: all 0.2s;
+        }
+        .card-vocaloid { background: linear-gradient(180deg, #62ffd2, #00c292); }
+        .card-config { background: linear-gradient(180deg, #b2bec3, #636e72); }
+        .menu-card.active { transform: scale(1.12) translateY(-5px); box-shadow: 0 0 25px #fff, 0 10px 20px rgba(0,0,0,0.5); filter: brightness(1.12); }
+
+        .config-item {
+            background: rgba(0,0,0,0.65); padding: 15px 25px; border-radius: 15px; 
+            border: 3px solid #fff; cursor: pointer; text-align: left; font-size: 1.3rem;
+            width: 280px; display: flex; justify-content: space-between; align-items: center;
             transition: all 0.2s;
         }
+        .config-item:hover { background: rgba(255,255,255,0.1); transform: scale(1.03); }
+        .config-item.waiting { border-color: #ffaa00; background: rgba(255, 170, 0, 0.2); animation: blink 0.8s infinite; }
 
-        .menu-card:hover,
-        .menu-card.active {
-            transform: scale(1.08);
-            box-shadow: 0 0 20px rgba(255,255,255,0.5);
-        }
+        .result-box { background: rgba(20, 24, 35, 0.92); border: 6px solid #ffaa00; padding: 40px; border-radius: 30px; width: 550px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); }
+        .result-title { font-size: 3rem; font-weight: 900; margin-bottom: 20px; background: linear-gradient(90deg, #ffe600, #ff5500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .result-status { font-size: 4rem; font-weight: 900; margin: 20px 0; text-transform: uppercase; letter-spacing: 4px; }
+        .status-clear { color: #ff3366; text-shadow: 0 0 20px rgba(255,51,102,0.6); }
+        .status-fail { color: #57606f; text-shadow: none; }
 
-        .menu-container {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 90vw;
-        }
+        #loading-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; justify-content: center; align-items: center; font-size: 2rem; font-weight: bold; z-index: 100; color: #ffaa00; flex-direction: column; }
 
-        .back-button {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            padding: 10px 20px;
-            background: rgba(100,100,100,0.8);
-            border: 2px solid #fff;
-            color: #fff;
-            cursor: pointer;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: bold;
-        }
-
-        .back-button:hover {
-            background: rgba(150,150,150,0.8);
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
+        @keyframes blink { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
 
-<!-- タイトル画面 -->
-<div id="screen-title" class="screen screen-title">
-    <div class="flash-text" id="btn-start">ドン！と叩くかクリック</div>
-</div>
+    <div id="loading-overlay" class="hidden">
+        <div id="loading-text">音声を読み込み中だドン...</div>
+    </div>
 
-<!-- ジャンル選択画面 -->
-<div id="screen-genre" class="screen screen-ui hidden">
-    <button class="back-button" id="back-from-genre">戻る</button>
-    <h1>ジャンルを えらぶドン！</h1>
-    <div class="menu-container" id="genre-list">
-        <div class="menu-card" data-genre="jpop" style="background: linear-gradient(180deg, #ff79c6, #e056fd);">J-POP</div>
-        <div class="menu-card" data-genre="anime" style="background: linear-gradient(180deg, #ffb86c, #f0932b);">アニメ</div>
-        <div class="menu-card" data-genre="vocaloid" style="background: linear-gradient(180deg, #62ffd2, #00c292);">ボーカロイド</div>
-        <div class="menu-card" data-genre="variety" style="background: linear-gradient(180deg, #8be9fd, #22a6b3);">バラエティ</div>
-        <div class="menu-card" data-genre="classic" style="background: linear-gradient(180deg, #f1fa8c, #be2edd);">クラシック</div>
-        <div class="menu-card" data-genre="game" style="background: linear-gradient(180deg, #50fa7b, #6ab04c);">ゲーム</div>
+    <div id="screen-title" class="screen">
+        <div class="flash-text" id="btn-title-start">ドン！と叩くかクリックでスタート</div>
+    </div>
+
+    <div id="screen-genre" class="screen bg-sub-screen hidden">
+        <h2 style="font-size: 2.2rem; margin-bottom: 20px;">ジャンルを えらぶ���ン！</h2>
+        <div class="menu-container" id="genre-list">
+            <div class="menu-card" data-target="jpop" style="background: linear-gradient(180deg, #ff79c6, #e056fd);">J-POP</div>
+            <div class="menu-card" data-target="anime" style="background: linear-gradient(180deg, #ffb86c, #f0932b);">アニメ</div>
+            <div class="menu-card card-vocaloid" data-target="vocaloid">ボーカロイド</div>
+            <div class="menu-card" data-target="variety" style="background: linear-gradient(180deg, #8be9fd, #22a6b3);">バラエティ</div>
+            <div class="menu-card" data-target="classic" style="background: linear-gradient(180deg, #f1fa8c, #be2edd);">クラシック</div>
+            <div class="menu-card" data-target="game" style="background: linear-gradient(180deg, #50fa7b, #6ab04c);">ゲーム</div>
+            <div class="menu-card" data-target="namco" style="background: linear-gradient(180deg, #ff5555, #eb4d4b);">ナムコ</div>
+            <div class="menu-card card-config" data-target="config">キー設定</div>
+        </div>
+    </div>
+
+    <div id="screen-song" class="screen bg-sub-screen hidden">
+        <h2 style="font-size: 2.5rem; margin-bottom: 35px;">きょくを えらぶドン！</h2>
+        <div class="menu-container" id="song-list">
+            <div class="menu-card card-vocaloid active" data-action="play_hibana" id="card-song-vocaloid">ヒバナ<br><span style="font-size:0.95rem;color:#ffe57f;margin-top:10px;">★8 (おに)</span></div>
+            <div class="menu-card card-config" data-action="back">もどる</div>
+        </div>
+    </div>
+
+    <div id="screen-config" class="screen bg-sub-screen hidden">
+        <h2 style="font-size: 2.2rem; margin-bottom: 10px;">キー設定変更だドン！</h2>
+        <p style="font-size: 1.1rem; color: #ffaa00; margin-bottom: 20px;">変えたい項目をクリックして、キーボードのキーを押してね！</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="config-item" data-keytarget="donL" id="cfg-donL">
+                <span>🔴 面 (左)</span><span class="key-val" style="color:#ff5555; font-weight:bold; font-size:1.6rem;">F</span>
+            </div>
+            <div class="config-item" data-keytarget="donR" id="cfg-donR">
+                <span>🔴 面 (右)</span><span class="key-val" style="color:#ff5555; font-weight:bold; font-size:1.6rem;">J</span>
+            </div>
+            <div class="config-item" data-keytarget="kaL" id="cfg-kaL">
+                <span>🔵 ふち (左)</span><span class="key-val" style="color:#00ffcc; font-weight:bold; font-size:1.6rem;">D</span>
+            </div>
+            <div class="config-item" data-keytarget="kaR" id="cfg-kaR">
+                <span>🔵 ふち (右)</span><span class="key-val" style="color:#00ffcc; font-weight:bold; font-size:1.6rem;">K</span>
+            </div>
+        </div>
+
+        <div class="menu-container" id="config-menu-list" style="margin-top: 25px;">
+            <div class="menu-card card-config active" data-action="config_back" style="width:160px; height:50px; font-size:1.2rem; border-radius:30px;">もどる</div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen bg-sub-screen hidden">
+        <div class="result-box">
+            <div class="result-title">演奏結果</div>
+            <div id="res-song-name" style="font-size: 1.6rem; font-weight: bold; color: #00ffcc;">ヒバナ</div>
+            <div id="res-status" class="result-status status-clear">クリア！</div>
+            <div class="menu-card card-vocaloid active" id="btn-result-back" style="width:240px; height:60px; font-size:1.3rem; margin:20px auto 0; border-radius:50px;">もう一度あそぶ</div>
+        </div>
     </div>
 </div>
-
-<!-- 曲選択画面 -->
-<div id="screen-song" class="screen screen-ui hidden">
-    <button class="back-button" id="back-from-song">戻る</button>
-    <h1 id="song-genre-title">ボーカロイド</h1>
-    <div class="menu-container" id="song-list">
-        <!-- 曲リストはJavaScriptで動的に生成 -->
-    </div>
-</div>
-
-<!-- ゲーム画面 -->
-<div id="screen-game" class="screen hidden"></div>
 
 <script>
-    // ========== 初期化 ==========
+    let currentScreen = 'title'; 
+    let activeMenuIndex = 0;
+    let keys = { donL: 'f', donR: 'j', kaL: 'd', kaR: 'k' };
+    let configTarget = null; 
+    let currentMenuItems = [];
+
+    let audioCtx;
+    let audioBuffers = {};
+    let bgmSource = null;
+
+    let gameState = 'none'; 
+    let gameTime = 0;       
+    let lastTimestamp = 0;  
+    let lastErrorLog = "";
+    
+    let notes = [];
+    let gogoEvents = []; 
+    let isGoGoTime = false;
+
+    let combo = 0;
+    let score = 0;
+    const NOTE_SPEED = 0.65; 
+
+    let gaugeValue = 0; 
+    const GAUGE_MAX = 50;
+    const GAUGE_NORMA = 40; 
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    
-    // キャンバスサイズ設定
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+    let width, height;
+    let particles = [];
+    let hitTexts = [];
+    let laneFlashes = { don: 0, ka: 0 };
+
+    const imgDon = new Image();
+    imgDon.src = './don_note.png.jpg';
+    const imgKa = new Image();
+    imgKa.src = './ka_note.png.jpg';
+
+    function resize() {
+        width = window.innerWidth; height = window.innerHeight;
+        canvas.width = width; canvas.height = height;
     }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', resize);
+    resize();
 
-    // ========== ゲーム状態 ==========
-    let gameState = 'title';
-    let gameTime = 0;
-    let lastTime = 0;
-    let keys = { donL: 'f', donR: 'j', kaL: 'd', kaR: 'k' };
-    let currentGenre = '';
-
-    // ジャンルごとの曲リスト
-    const songsByGenre = {
-        jpop: [
-            { name: '愛する君へ', level: 5 },
-            { name: '星のかけら', level: 6 },
-            { name: '夢色デイズ', level: 7 }
-        ],
-        anime: [
-            { name: '紅蓮華', level: 6 },
-            { name: '炎', level: 7 },
-            { name: 'グッバイ宣言', level: 8 }
-        ],
-        vocaloid: [
-            { name: 'ヒバナ', level: 8 },
-            { name: 'ロキ', level: 7 },
-            { name: 'ワールドイズマイン', level: 6 }
-        ],
-        variety: [
-            { name: 'ドラえもん', level: 3 },
-            { name: 'アンパンマン', level: 4 },
-            { name: 'サザエさん', level: 3 }
-        ],
-        classic: [
-            { name: 'モーツァルト - アイネクライネ', level: 5 },
-            { name: 'ベートーヴェン - 第9', level: 7 },
-            { name: 'チャイコフスキー - くるみ割り人形', level: 6 }
-        ],
-        game: [
-            { name: 'スーパーマリオ ステージ1', level: 4 },
-            { name: 'ゼルダの伝説 メインテーマ', level: 5 },
-            { name: 'ポケモン セント・アンス号', level: 6 }
-        ]
-    };
-
-    const genreNames = {
-        jpop: 'J-POP',
-        anime: 'アニメ',
-        vocaloid: 'ボーカロイド',
-        variety: 'バラエティ',
-        classic: 'クラシック',
-        game: 'ゲーム'
-    };
-
-    // ========== 画面切り替え ==========
-    function showScreen(screenName) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-        const screen = document.getElementById(`screen-${screenName}`);
-        if (screen) {
-            screen.classList.remove('hidden');
+    class Particle {
+        constructor(x, y, color, isFire = false) {
+            this.x = x; this.y = y; this.color = color;
+            this.isFire = isFire;
+            const angle = isFire ? (Math.PI + (Math.random() - 0.5)) : Math.random() * Math.PI * 2;
+            const speed = isFire ? (Math.random() * 5 + 2) : (Math.random() * 12 + 6);
+            this.vx = Math.cos(angle) * speed; 
+            this.vy = Math.sin(angle) * speed;
+            if(isFire) this.vy -= 2; 
+            this.life = 1.0; this.size = Math.random() * 6 + (isFire ? 6 : 3);
         }
-        gameState = screenName;
+        update() { 
+            this.x += this.vx; this.y += this.vy; 
+            if(!this.isFire) { this.vx *= 0.85; this.vy *= 0.85; }
+            this.life -= this.isFire ? 0.04 : 0.07; 
+        }
+        draw(ctx) {
+            ctx.save(); ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
     }
 
-    // ========== イベントリスナー ==========
-    document.getElementById('btn-start').addEventListener('click', () => {
-        showScreen('genre');
-    });
-
-    document.getElementById('back-from-genre').addEventListener('click', () => {
-        showScreen('title');
-    });
-
-    document.getElementById('back-from-song').addEventListener('click', () => {
-        showScreen('genre');
-    });
-
-    document.getElementById('genre-list').addEventListener('click', (e) => {
-        const card = e.target.closest('.menu-card');
-        if (card) {
-            currentGenre = card.getAttribute('data-genre');
-            loadSongList(currentGenre);
-            showScreen('song');
+    class Confetti {
+        constructor(x, y) {
+            this.x = x; this.y = y;
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+            const angle = (Math.PI * 1.2) + (Math.random() * Math.PI * 0.6); 
+            const speed = Math.random() * 25 + 10;
+            this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+            this.life = 1.0; this.size = Math.random() * 8 + 4;
         }
-    });
-
-    document.getElementById('song-list').addEventListener('click', (e) => {
-        const card = e.target.closest('.menu-card');
-        if (card) {
-            const songName = card.getAttribute('data-song');
-            console.log(`選択曲: ${songName}`);
-            startGame(songName);
+        update() { this.x += this.vx; this.vy += 0.8; this.y += this.vy; this.life -= 0.015; }
+        draw(ctx) {
+            ctx.save(); ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.size, this.size); ctx.restore();
         }
-    });
+    }
 
-    window.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase();
+    function spawnConfettiBurst() {
+        if (particles.length > 300) return;
+        for(let i=0; i<60; i++) particles.push(new Confetti(width * 0.16, height)); 
+        for(let i=0; i<60; i++) particles.push(new Confetti(width * 0.84, height)); 
+    }
+
+    async function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        document.getElementById('loading-overlay').classList.remove('hidden');
         
-        if (gameState === 'title') {
-            if (key === keys.donL || key === keys.donR || key === keys.kaL || key === keys.kaR) {
-                showScreen('genre');
+        async function loadAssetWithInterceptor(name, primaryUrl, fallbackUrl = null) {
+            try {
+                await loadSound(name, primaryUrl);
+                console.log(`【音声迎撃】${name} をロード成功: ${primaryUrl}`);
+            } catch(e) {
+                console.warn(`【音声警告】${primaryUrl} が見つかりません。自動フォールバックを実行します。`);
+                if(fallbackUrl) {
+                    try {
+                        await loadSound(name, fallbackUrl);
+                        console.log(`【音声迎撃】${name} を代替ソースからロード成功: ${fallbackUrl}`);
+                        if(name === 'hibana') {
+                            document.getElementById('res-song-name').innerText = "フォニイ";
+                            const songCard = document.getElementById('card-song-vocaloid');
+                            if(songCard) songCard.innerHTML = "フォニイ<br><span style='font-size:0.95rem;color:#ffe57f;margin-top:10px;'>★8 (おに)</span>";
+                        }
+                    } catch(err) {
+                        console.error(`【音声深刻】代替ソース ${fallbackUrl} のロードにも失敗しました。無音で進行します。`, err);
+                    }
+                }
             }
         }
-    });
 
-    // ========== 曲リストを読み込み ==========
-    function loadSongList(genre) {
-        const songList = document.getElementById('song-list');
-        songList.innerHTML = '';
+        try {
+            await Promise.all([
+                loadAssetWithInterceptor('don', './nc131656_太鼓の達人_ドン.wav'),
+                loadAssetWithInterceptor('ka', './nc131657_太鼓の達人_カッ.wav'),
+                loadAssetWithInterceptor('hibana', './ヒバナ.ogg', './フォニイ.mp3') 
+            ]);
+        } catch(e) {
+            lastErrorLog = e.message;
+        } finally {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+    }
 
-        document.getElementById('song-genre-title').textContent = genreNames[genre] || genre;
+    async function loadSound(name, url) {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffers[name] = await audioCtx.decodeAudioData(arrayBuffer);
+    }
 
-        const songs = songsByGenre[genre] || [];
-        songs.forEach(song => {
-            const card = document.createElement('div');
-            card.className = 'menu-card';
-            card.setAttribute('data-song', song.name);
-            card.style.background = 'linear-gradient(180deg, #ff9800, #f57c00)';
-            card.innerHTML = `
-                <div>${song.name}</div>
-                <div style="font-size: 0.8rem; margin-top: 10px;">★${song.level}</div>
-            `;
-            songList.appendChild(card);
+    function playSound(name) {
+        if (!audioCtx || !audioBuffers[name]) return;
+        const source = audioCtx.createBufferSource(); source.buffer = audioBuffers[name]; source.connect(audioCtx.destination); source.start(0);
+    }
+
+    function parseTJA(tjaText) {
+        let parsedNotes = [];
+        let parsedGoGo = [];
+        let lines = tjaText.split(/\r?\n/);
+        
+        let bpm = 120;
+        let offset = 0;
+        let measureRatio = 1.0; 
+        
+        for(let line of lines) {
+            let cleanLine = line.split('//')[0].trim();
+            if(!cleanLine) continue;
+
+            let bpmMatch = cleanLine.match(/^BPM\s*[:=\s]\s*([\d.]+)/i);
+            if(bpmMatch && bpmMatch[1]) {
+                let val = parseFloat(bpmMatch[1]);
+                if(!isNaN(val) && val > 0) bpm = val;
+            }
+            let offsetMatch = cleanLine.match(/^OFFSET\s*[:=\s]\s*([-\d.]+)/i);
+            if(offsetMatch && offsetMatch[1]) {
+                let val = parseFloat(offsetMatch[1]);
+                if(!isNaN(val)) offset = val * -1000; 
+            }
+        }
+
+        let timeMs = offset;
+        if(isNaN(timeMs)) timeMs = 0; 
+
+        let isGoGoActive = false;
+        let goGoStartTime = 0;
+        let currentMeasureData = "";
+        let inSongArea = false; 
+        
+        for(let line of lines) {
+            let text = line.split('//')[0].trim();
+            if(!text) continue;
+
+            if(text.startsWith('#')) {
+                let upperText = text.toUpperCase();
+                
+                if(upperText.startsWith('#START')) {
+                    inSongArea = true; currentMeasureData = ""; continue;
+                }
+                if(upperText.startsWith('#END')) {
+                    inSongArea = false; break;
+                }
+                if(!inSongArea) continue;
+
+                let bpmChangeMatch = text.match(/#BPMCHANGE\s*[:=\s]\s*([\d.]+)/i);
+                if(bpmChangeMatch && bpmChangeMatch[1]) {
+                    let val = parseFloat(bpmChangeMatch[1]);
+                    if(!isNaN(val) && val > 0) bpm = val;
+                }
+                let measureMatch = text.match(/#MEASURE\s*[:=\s]\s*([\d.]+)\/([\d.]+)/i);
+                if(measureMatch && measureMatch[1] && measureMatch[2]) {
+                    let val = parseFloat(measureMatch[1]) / parseFloat(measureMatch[2]);
+                    if(!isNaN(val) && val > 0) measureRatio = val;
+                }
+
+                if(upperText.startsWith('#GOGOSTART')) {
+                    isGoGoActive = true; goGoStartTime = timeMs;
+                } else if(upperText.startsWith('#GOGOEND')) {
+                    if(isGoGoActive) {
+                        parsedGoGo.push({start: goGoStartTime, end: timeMs});
+                        isGoGoActive = false;
+                    }
+                }
+                continue;
+            }
+
+            if(!inSongArea) continue;
+
+            let cleanData = text.replace(/[\s\t ]/g, "");
+            
+            for(let i = 0; i < cleanData.length; i++) {
+                let char = cleanData[i];
+                if(char >= '0' && char <= '9') {
+                    currentMeasureData += char;
+                } else if(char === ',') {
+                    let len = currentMeasureData.length;
+                    let beatLengthMs = (60000 / bpm);
+                    let measureDurationMs = beatLengthMs * 4 * measureRatio;
+                    
+                    if(isNaN(measureDurationMs) || measureDurationMs <= 0) measureDurationMs = 2000; 
+
+                    if(len > 0) {
+                        let noteDurationMs = measureDurationMs / len;
+                        for(let j = 0; j < len; j++) {
+                            let c = currentMeasureData[j];
+                            if(!isNaN(timeMs)) {
+                                if(c === '1') parsedNotes.push({time: timeMs, type: 'don', hit: false});
+                                else if(c === '2') parsedNotes.push({time: timeMs, type: 'ka', hit: false});
+                                else if(c === '3') parsedNotes.push({time: timeMs, type: 'bigDon', hit: false});
+                                else if(c === '4') parsedNotes.push({time: timeMs, type: 'bigKa', hit: false});
+                            }
+                            timeMs += noteDurationMs;
+                        }
+                    } else {
+                        timeMs += measureDurationMs;
+                    }
+                    currentMeasureData = ""; 
+                }
+            }
+        }
+        
+        if(isGoGoActive) parsedGoGo.push({start: goGoStartTime, end: timeMs});
+        
+        let lastNoteTime = parsedNotes.length > 0 ? parsedNotes[parsedNotes.length - 1].time : 0;
+        if(isNaN(lastNoteTime)) lastNoteTime = 0;
+        
+        parsedNotes.push({time: lastNoteTime + 3000, type: 'end_marker', hit: false});
+
+        notes = parsedNotes;
+        gogoEvents = parsedGoGo;
+        console.log(`【TJA解析完了】総ノーツ数: ${notes.length}個 / BPM: ${bpm} / OFFSET: ${offset}`);
+    }
+
+    async function startSongPlay() {
+        const overlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        
+        overlay.classList.remove('hidden');
+        loadingText.innerText = "外部TJAファイルを読み込み中だドン...";
+
+        try {
+            const response = await fetch('./ヒバナ.tja');
+            if (!response.ok) throw new Error("File not found");
+            
+            const arrayBuffer = await response.arrayBuffer();
+            const sjisDecoder = new TextDecoder('shift-jis');
+            let tjaText = sjisDecoder.decode(arrayBuffer);
+            
+            if (!tjaText.toUpperCase().includes('#START')) {
+                const utf8Decoder = new TextDecoder('utf-8');
+                tjaText = utf8Decoder.decode(arrayBuffer);
+            }
+            
+            parseTJA(tjaText);
+
+        } catch(e) {
+            console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドしますドン！");
+            
+            let mockNotes = [];
+            let virtualTime = 1800;
+            
+            for(let i=0; i<150; i++) {
+                let rand = Math.random();
+                let type = 'don';
+                if(rand > 0.85) type = 'bigDon';
+                else if(rand > 0.50) type = 'ka';
+                else if(rand > 0.40) type = 'bigKa';
+                
+                mockNotes.push({time: virtualTime, type: type, hit: false});
+                virtualTime += Math.floor(Math.random() * 3 + 1) * 260;
+            }
+            mockNotes.push({time: virtualTime + 2000, type: 'end_marker', hit: false});
+            
+            notes = mockNotes;
+            gogoEvents = [
+                {start: 15000, end: 30000},
+                {start: 45000, end: virtualTime - 5000}
+            ];
+        }
+
+        gameTime = 0; score = 0; combo = 0; gaugeValue = 0; isGoGoTime = false; lastErrorLog = "";
+        particles = []; hitTexts = [];
+        
+        lastTimestamp = performance.now();
+        
+        overlay.classList.add('hidden');
+        playBGM();
+        changeScreen('game');
+        gameState = 'playing';
+    }
+
+    function playBGM() {
+        if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
+        if (!audioBuffers['hibana']) return;
+        bgmSource = audioCtx.createBufferSource();
+        bgmSource.buffer = audioBuffers['hibana'];
+        bgmSource.connect(audioCtx.destination);
+        bgmSource.start(0);
+    }
+
+    function changeScreen(screenName) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        const target = document.getElementById(`screen-${screenName}`);
+        if(target) target.classList.remove('hidden');
+        currentScreen = screenName; activeMenuIndex = 0; configTarget = null;
+        document.querySelectorAll('.config-item').forEach(b => b.classList.remove('waiting'));
+        
+        if (screenName === 'genre') { currentMenuItems = Array.from(document.querySelectorAll('#genre-list .menu-card')); updateMenuVisuals(); }
+        else if (screenName === 'song') { currentMenuItems = Array.from(document.querySelectorAll('#song-list .menu-card')); updateMenuVisuals(); }
+        else if (screenName === 'config') { currentMenuItems = Array.from(document.querySelectorAll('#screen-config .menu-card')); updateConfigDisplay(); updateMenuVisuals(); }
+    }
+
+    function updateMenuVisuals() {
+        if(currentMenuItems.length === 0) return;
+        currentMenuItems.forEach((item, idx) => {
+            if (idx === activeMenuIndex) item.classList.add('active'); else item.classList.remove('active');
         });
     }
 
-    // ========== ゲーム開始 ==========
-    function startGame(songName) {
-        showScreen('game');
-        gameTime = 0;
-        lastTime = performance.now();
-        console.log(`ゲーム開始: ${songName}`);
-        gameLoop();
+    function updateConfigDisplay() {
+        document.querySelector('#cfg-donL .key-val').innerText = keys.donL.toUpperCase();
+        document.querySelector('#cfg-donR .key-val').innerText = keys.donR.toUpperCase();
+        document.querySelector('#cfg-kaL .key-val').innerText = keys.kaL.toUpperCase();
+        document.querySelector('#cfg-kaR .key-val').innerText = keys.kaR.toUpperCase();
     }
 
-    // ========== メインゲームループ ==========
-    function gameLoop() {
-        requestAnimationFrame(gameLoop);
+    function triggerMenuClickAction(item) {
+        if (!item) return;
+        
+        if (currentScreen === 'genre') {
+            const target = item.getAttribute('data-target');
+            if (target === 'config') changeScreen('config'); 
+            else if (target === 'vocaloid') changeScreen('song');   
+            else alert(item.innerText + "の曲は今後追加予定だドン！今はボーカロイドかキー設定を選んでね。");
+        }
+        else if (currentScreen === 'song') {
+            const act = item.getAttribute('data-action');
+            if (act === 'back') changeScreen('genre');
+            else if (act === 'play_hibana') startSongPlay();
+        } 
+        else if (currentScreen === 'config') {
+            const act = item.getAttribute('data-action');
+            if (act === 'config_back') changeScreen('genre');
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.repeat) return;
+
+        if (configTarget) {
+            e.preventDefault();
+            const invalidKeys = ['escape', 'enter', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+            if (!invalidKeys.includes(e.key.toLowerCase())) {
+                keys[configTarget] = e.key.toLowerCase();
+            }
+            configTarget = null;
+            document.querySelectorAll('.config-item').forEach(b => b.classList.remove('waiting'));
+            updateConfigDisplay();
+            return;
+        }
+
+        const key = e.key.toLowerCase();
+
+        if (gameState === 'playing' || currentScreen === 'title') {
+            const hitX = width * 0.16; const laneY = height * 0.5;
+
+            if (key === keys.donL || key === keys.donR) {
+                laneFlashes.don = 1.0; playSound('don');
+                if (currentScreen === 'title') { initAudio().then(() => changeScreen('genre')); return; }
+                if (gameState === 'playing') checkHit('don', hitX, laneY);
+            }
+            if (key === keys.kaL || key === keys.kaR) {
+                laneFlashes.ka = 1.0; playSound('ka');
+                if (gameState === 'playing') checkHit('ka', hitX, laneY);
+            }
+        } else {
+            if(currentMenuItems.length === 0) return;
+            if (key === keys.kaL) { activeMenuIndex = (activeMenuIndex - 1 + currentMenuItems.length) % currentMenuItems.length; updateMenuVisuals(); }
+            else if (key === keys.kaR) { activeMenuIndex = (activeMenuIndex + 1) % currentMenuItems.length; updateMenuVisuals(); }
+            else if (key === keys.donL || key === keys.donR) { triggerMenuClickAction(currentMenuItems[activeMenuIndex]); }
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        if (currentScreen === 'title' && e.target.id === 'btn-title-start') {
+            initAudio().then(() => changeScreen('genre')); return;
+        }
+        if (currentScreen === 'result' && e.target.id === 'btn-result-back') {
+            changeScreen('genre'); return;
+        }
+
+        const configItem = e.target.closest('.config-item');
+        if (configItem && currentScreen === 'config') {
+            document.querySelectorAll('.config-item').forEach(b => b.classList.remove('waiting'));
+            configTarget = configItem.getAttribute('data-keytarget');
+            configItem.classList.add('waiting');
+            configItem.querySelector('.key-val').innerText = "？";
+            return;
+        }
+
+        const card = e.target.closest('.menu-card');
+        if (!card) return;
+        if (card.closest('.screen').classList.contains('hidden')) return;
+
+        const idx = currentMenuItems.indexOf(card);
+        if (idx !== -1) {
+            activeMenuIndex = idx;
+            updateMenuVisuals();
+            triggerMenuClickAction(card);
+        }
+    });
+
+    function checkHit(type, hitX, laneY) {
+        const windowGood = 45; const windowOk = 110;
+        let validNotes = notes.filter(n => !n.hit && n.type !== 'end_marker' && Math.abs(n.time - gameTime) < windowOk);
+        
+        if (validNotes.length > 0) {
+            validNotes.sort((a, b) => Math.abs(a.time - gameTime) - Math.abs(b.time - gameTime));
+            let target = validNotes[0];
+            target.hit = true;
+            const diff = Math.abs(target.time - gameTime);
+            let isCorrect = (target.type === type) || (target.type === 'bigDon' && type === 'don') || (target.type === 'bigKa' && type === 'ka');
+
+            if (isCorrect) {
+                let multiplier = (target.type && target.type.includes('big')) ? 2 : 1;
+                let gogoMulti = isGoGoTime ? 1.2 : 1.0; 
+
+                for(let i=0; i<10; i++) {
+                    if (particles.length < 300) particles.push(new Particle(hitX, laneY, type==='don'?'#ff2a2a':'#00f0ff'));
+                }
+
+                if (hitTexts.length < 20) {
+                    if (diff <= windowGood) {
+                        combo++; score += Math.floor((1000 + combo * 10) * multiplier * gogoMulti);
+                        gaugeValue = Math.min(GAUGE_MAX, gaugeValue + 0.5); 
+                        hitTexts.push({ text: "良", color: "#ffea00", life: 1.0 });
+                    } else {
+                        combo++; score += Math.floor((500 + combo * 5) * multiplier * gogoMulti);
+                        gaugeValue = Math.min(GAUGE_MAX, gaugeValue + 0.25); 
+                        hitTexts.push({ text: "可", color: "#ffffff", life: 1.0 });
+                    }
+                }
+            } else {
+                combo = 0; gaugeValue = Math.max(0, gaugeValue - 1.0); 
+                if (hitTexts.length < 20) hitTexts.push({ text: "不可", color: "#95a5a6", life: 1.0 });
+            }
+        }
+    }
+
+    function draw() {
+        requestAnimationFrame(draw);
 
         const now = performance.now();
-        const deltaTime = lastTime ? now - lastTime : 0;
-        lastTime = now;
+        if (!lastTimestamp) lastTimestamp = now;
+        let dt = now - lastTimestamp; 
+        lastTimestamp = now;
 
-        if (gameState === 'game') {
-            gameTime += deltaTime;
-            drawGameScreen();
-        } else if (gameState === 'title') {
-            drawTitleScreen();
+        if (isNaN(dt) || dt <= 0 || dt > 100) dt = 16.66;
+
+        try {
+            if (gameState === 'playing') { 
+                gameTime += dt; 
+                if (isNaN(gameTime)) gameTime = 0;
+                
+                if (notes.length > 0) {
+                    let endNote = notes[notes.length - 1];
+                    if (endNote && gameTime >= endNote.time) {
+                        gameState = 'none'; 
+                        if (bgmSource) { try { bgmSource.stop(); } catch(e){} bgmSource = null; }
+                        
+                        const resStatus = document.getElementById('res-status');
+                        if (gaugeValue >= GAUGE_NORMA) {
+                            resStatus.innerText = "クリア！"; resStatus.className = "result-status status-clear";
+                        } else {
+                            resStatus.innerText = "クリア失敗..."; resStatus.className = "result-status status-fail";
+                        }
+                        changeScreen('result');
+                    }
+                }
+
+                let currentlyInGoGo = false;
+                for(let g of gogoEvents) {
+                    if(g && gameTime >= g.start && gameTime <= g.end) { currentlyInGoGo = true; break; }
+                }
+                if(currentlyInGoGo && !isGoGoTime) spawnConfettiBurst(); 
+                isGoGoTime = currentlyInGoGo;
+            }
+
+            ctx.clearRect(0, 0, width, height);
+            const laneY = height * 0.5; const laneHeight = 150; const hitX = width * 0.16; 
+
+            if (currentScreen === 'game' || currentScreen === 'title') {
+                ctx.fillStyle = isGoGoTime ? 'rgba(255, 90, 90, 0.28)' : 'rgba(25, 25, 35, 0.96)';
+                ctx.fillRect(0, laneY - laneHeight/2, width, laneHeight);
+                
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(0, laneY - laneHeight/2); ctx.lineTo(width, laneY - laneHeight/2);
+                ctx.moveTo(0, laneY + laneHeight/2); ctx.lineTo(width, laneY + laneHeight/2); ctx.stroke();
+
+                ctx.beginPath(); 
+                ctx.arc(hitX, laneY, 52, 0, Math.PI * 2); 
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.stroke(); 
+                ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+
+                if(isGoGoTime && gameState === 'playing') {
+                    if(Math.random() < 0.6 && particles.length < 300) {
+                        let angle = Math.random() * Math.PI * 2;
+                        particles.push(new Particle(hitX + Math.cos(angle)*54, laneY + Math.sin(angle)*54, '#ff6a00', true));
+                    }
+                }
+
+                if (gameState === 'playing') {
+                    const gaugeW = width * 0.45; const gaugeH = 28; 
+                    const gaugeX = width * 0.52; const gaugeY = laneY - laneHeight/2 - 50;
+                    ctx.fillStyle = '#111'; ctx.fillRect(gaugeX, gaugeY, gaugeW, gaugeH);
+
+                    const blockWidth = gaugeW / GAUGE_MAX;
+                    for(let i=0; i<GAUGE_MAX; i++) {
+                        let bx = gaugeX + i * blockWidth;
+                        if(i < gaugeValue) {
+                            if (i >= GAUGE_NORMA) ctx.fillStyle = '#ffea00'; else ctx.fillStyle = '#ff3366'; 
+                        } else ctx.fillStyle = '#333';
+                        ctx.fillRect(bx + 1, gaugeY + 2, blockWidth - 2, gaugeH - 4);
+                    }
+                    const normaX = gaugeX + blockWidth * GAUGE_NORMA;
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(normaX, gaugeY - 10); ctx.lineTo(normaX, gaugeY + gaugeH + 10); ctx.stroke();
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText("クリア", normaX, gaugeY - 15);
+                }
+            }
+
+            if (gameState === 'playing') {
+                notes.forEach(note => {
+                    if (!note || note.hit || note.type === 'end_marker' || isNaN(note.time)) return;
+                    const noteX = hitX + (note.time - gameTime) * NOTE_SPEED;
+
+                    if (noteX < hitX - 80) {
+                        note.hit = true; combo = 0; gaugeValue = Math.max(0, gaugeValue - 1.0);
+                        if (hitTexts.length < 20) hitTexts.push({ text: "不可", color: "#95a5a6", life: 1.0 }); 
+                        return;
+                    }
+
+                    if (noteX > -60 && noteX < width + 60) {
+                        let isBig = (note.type && (note.type === 'bigDon' || note.type === 'bigKa'));
+                        let radius = isBig ? 52 : 36;
+                        let isDon = (note.type && (note.type === 'don' || note.type === 'bigDon'));
+
+                        if (radius > 0 && hitX >= 0 && laneY >= 0) {
+                            ctx.save();
+                            let grad = ctx.createRadialGradient(noteX - radius*0.2, laneY - radius*0.2, Math.max(1, radius * 0.1), noteX, laneY, radius);
+                            if (isDon) { grad.addColorStop(0, '#ff7777'); grad.addColorStop(0.8, '#ff2a2a'); grad.addColorStop(1, '#cc0000'); }
+                            else { grad.addColorStop(0, '#77ffff'); grad.addColorStop(0.8, '#00f0ff'); grad.addColorStop(1, '#0099cc'); }
+                            
+                            ctx.beginPath(); 
+                            ctx.arc(noteX, laneY, radius, 0, Math.PI * 2);
+
+                            if (isDon && imgDon.complete && imgDon.width > 0) {
+                                ctx.drawImage(imgDon, noteX - radius, laneY - radius, radius * 2, radius * 2);
+                            } else if (!isDon && imgKa.complete && imgKa.width > 0) {
+                                ctx.drawImage(imgKa, noteX - radius, laneY - radius, radius * 2, radius * 2);
+                            } else {
+                                ctx.fillStyle = grad;
+                                ctx.fill();
+                                ctx.strokeStyle = '#ffffff';
+                                ctx.lineWidth = 3;
+                                ctx.stroke();
+                            }
+                            ctx.restore();
+                        }
+                    }
+                });
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            if (gameState === 'playing') {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 26px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.shadowColor = '#000000'; ctx.shadowBlur = 4;
+                ctx.fillText(`スコア: ${score}`, width * 0.05, laneY - laneHeight/2 - 35);
+                ctx.restore();
+
+                if (combo >= 3) {
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    let pulse = Math.sin(performance.now() * 0.04) * 2;
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.font = 'italic bold 44px sans-serif';
+                    ctx.fillText(`${combo}`, hitX, laneY - 95 + pulse);
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.fillText('COMBO', hitX, laneY - 65);
+                    ctx.restore();
+                }
+
+                for (let i = hitTexts.length - 1; i >= 0; i--) {
+                    let ht = hitTexts[i];
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, ht.life);
+                    ctx.fillStyle = ht.color;
+                    ctx.font = 'bold 38px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
+                    ctx.fillText(ht.text, hitX, laneY - 140 - (1.0 - ht.life) * 25);
+                    ctx.restore();
+                    
+                    ht.life -= 0.04;
+                    if (ht.life <= 0) hitTexts.splice(i, 1);
+                }
+            }
+
+        } catch(e) {
+            lastErrorLog = e.message;
+            console.error("【エラー自動迎撃】描画ループ内で例外を検知・防御しました: ", e.message);
         }
     }
 
-    // ========== 描画関数 ==========
-    function drawTitleScreen() {
-        // タイトル背景グラデーション
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#1a1a2e');
-        grad.addColorStop(1, '#16213e');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // タイトルテキスト
-        ctx.fillStyle = '#ffaa00';
-        ctx.font = 'bold 60px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('太鼓の達人', canvas.width / 2, canvas.height / 2 - 100);
-
-        // 点滅テキスト
-        const blink = Math.sin(gameTime / 500) * 0.5 + 0.5;
-        ctx.globalAlpha = blink;
-        ctx.fillStyle = '#ffff00';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillText('キーを押してスタート', canvas.width / 2, canvas.height / 2 + 50);
-        ctx.globalAlpha = 1;
-    }
-
-    function drawGameScreen() {
-        // ゲーム画面の背景
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#0d1b2a');
-        grad.addColorStop(1, '#1a3a52');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const laneY = canvas.height / 2;
-        const laneHeight = 150;
-        const hitX = canvas.width * 0.15;
-
-        // ゲームレーン
-        ctx.fillStyle = 'rgba(25, 25, 35, 0.8)';
-        ctx.fillRect(0, laneY - laneHeight / 2, canvas.width, laneHeight);
-
-        // レーンボーダー
-        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, laneY - laneHeight / 2);
-        ctx.lineTo(canvas.width, laneY - laneHeight / 2);
-        ctx.moveTo(0, laneY + laneHeight / 2);
-        ctx.lineTo(canvas.width, laneY + laneHeight / 2);
-        ctx.stroke();
-
-        // ヒットサークル - 負の値チェック
-        const radius = Math.max(1, 50);
-        if (hitX > 0 && laneY > 0 && radius > 0) {
-            ctx.beginPath();
-            ctx.arc(hitX, laneY, radius, 0, Math.PI * 2);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.fill();
-        }
-
-        // テキスト表示
-        ctx.fillStyle = '#00ffcc';
-        ctx.font = 'bold 24px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(`ゲーム時間: ${Math.floor(gameTime)}ms`, 20, 40);
-    }
-
-    // ========== ゲーム開始 ==========
-    gameLoop();
+    draw();
 </script>
 
 </body>
