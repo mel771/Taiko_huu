@@ -137,6 +137,8 @@
             <div class="menu-card card-vocaloid active" id="btn-result-back" style="width:240px; height:60px; font-size:1.3rem; margin:20px auto 0; border-radius:50px;">もう一度あそぶ</div>
         </div>
     </div>
+
+    <div id="screen-game" class="screen hidden"></div>
 </div>
 
 <script>
@@ -155,7 +157,7 @@
     let gameState = 'none'; 
     let gameTime = 0;       
     let lastTimestamp = 0;  
-    let lastErrorLog = ""; // 内部エラーの補足用ブラックボックス
+    let lastErrorLog = "";
     
     let notes = [];
     let gogoEvents = []; 
@@ -184,8 +186,10 @@
     imgKa.src = './ka_note.png.jpg';
 
     function resize() {
-        width = window.innerWidth; height = window.innerHeight;
-        canvas.width = width; canvas.height = height;
+        width = window.innerWidth; 
+        height = window.innerHeight;
+        canvas.width = width; 
+        canvas.height = height;
     }
     window.addEventListener('resize', resize);
     resize();
@@ -231,7 +235,7 @@
     }
 
     function spawnConfettiBurst() {
-        if (particles.length > 300) return; // 無限肥大化セーフティ
+        if (particles.length > 300) return;
         for(let i=0; i<60; i++) particles.push(new Confetti(width * 0.16, height)); 
         for(let i=0; i<60; i++) particles.push(new Confetti(width * 0.84, height)); 
     }
@@ -241,7 +245,6 @@
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         document.getElementById('loading-overlay').classList.remove('hidden');
         
-        // アセットごとの独立読み込み迎撃システム (1つコケてもゲームを落とさない防壁)
         async function loadAssetWithInterceptor(name, primaryUrl, fallbackUrl = null) {
             try {
                 await loadSound(name, primaryUrl);
@@ -252,7 +255,6 @@
                     try {
                         await loadSound(name, fallbackUrl);
                         console.log(`【音声迎撃】${name} を代替ソースからロード成功: ${fallbackUrl}`);
-                        // フォニイが読み込まれた場合はUI表示を連動して最適化
                         if(name === 'hibana') {
                             document.getElementById('res-song-name').innerText = "フォニイ";
                             const songCard = document.getElementById('card-song-vocaloid');
@@ -431,9 +433,8 @@
         } catch(e) {
             console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドしますドン！");
             
-            // TJAファイルがなくても絶対フリーズさせずに遊ばせるための擬似データジェネレータ
             let mockNotes = [];
-            let virtualTime = 1800; // スタート猶予
+            let virtualTime = 1800;
             
             for(let i=0; i<150; i++) {
                 let rand = Math.random();
@@ -443,19 +444,17 @@
                 else if(rand > 0.40) type = 'bigKa';
                 
                 mockNotes.push({time: virtualTime, type: type, hit: false});
-                virtualTime += Math.floor(Math.random() * 3 + 1) * 260; // 交互や連打感のあるランダム配置
+                virtualTime += Math.floor(Math.random() * 3 + 1) * 260;
             }
             mockNotes.push({time: virtualTime + 2000, type: 'end_marker', hit: false});
             
             notes = mockNotes;
-            // 擬似ゴーゴータイムの設定
             gogoEvents = [
                 {start: 15000, end: 30000},
                 {start: 45000, end: virtualTime - 5000}
             ];
         }
 
-        // ゲーム変数の初期化とメインループ実行
         gameTime = 0; score = 0; combo = 0; gaugeValue = 0; isGoGoTime = false; lastErrorLog = "";
         particles = []; hitTexts = [];
         
@@ -469,7 +468,6 @@
 
     function playBGM() {
         if (bgmSource) { try { bgmSource.stop(); } catch(e){} }
-        // hibanaバッファにロードされているもの(ヒバナ or フォニイ)を再生
         if (!audioBuffers['hibana']) return;
         bgmSource = audioCtx.createBufferSource();
         bgmSource.buffer = audioBuffers['hibana'];
@@ -523,7 +521,6 @@
         }
     }
 
-    // キーボード入力
     window.addEventListener('keydown', (e) => {
         if (e.repeat) return;
 
@@ -561,7 +558,6 @@
         }
     });
 
-    // マウスクリック
     document.addEventListener('click', (e) => {
         if (currentScreen === 'title' && e.target.id === 'btn-title-start') {
             initAudio().then(() => changeScreen('genre')); return;
@@ -610,7 +606,7 @@
                     if (particles.length < 300) particles.push(new Particle(hitX, laneY, type==='don'?'#ff2a2a':'#00f0ff'));
                 }
 
-                if (hitTexts.length < 20) { // 爆発増加セーフティ
+                if (hitTexts.length < 20) {
                     if (diff <= windowGood) {
                         combo++; score += Math.floor((1000 + combo * 10) * multiplier * gogoMulti);
                         gaugeValue = Math.min(GAUGE_MAX, gaugeValue + 0.5); 
@@ -628,9 +624,7 @@
         }
     }
 
-    // --- 【超・絶対防御】メイン描画ループシステム ---
     function draw() {
-        // ループの継続予約を「最初」に行うことで、途中でエラーが起きてもループ自体を絶対に止めない防壁を形成
         requestAnimationFrame(draw);
 
         const now = performance.now();
@@ -640,13 +634,11 @@
 
         if (isNaN(dt) || dt <= 0 || dt > 100) dt = 16.66;
 
-        // 【最重要ガード】この try-catch で囲むことにより、演奏中にどんな大バグが起きても握りつぶしてゲームを強制続行させるドン！
         try {
             if (gameState === 'playing') { 
                 gameTime += dt; 
                 if (isNaN(gameTime)) gameTime = 0;
                 
-                // 譜面終了判定
                 if (notes.length > 0) {
                     let endNote = notes[notes.length - 1];
                     if (endNote && gameTime >= endNote.time) {
@@ -691,7 +683,6 @@
                     }
                 }
 
-                // クリアゲージ
                 if (gameState === 'playing') {
                     const gaugeW = width * 0.45; const gaugeH = 28; 
                     const gaugeX = width * 0.52; const gaugeY = laneY - laneHeight/2 - 50;
@@ -712,7 +703,6 @@
                 }
             }
 
-            // ノーツ描画
             if (gameState === 'playing') {
                 notes.forEach(note => {
                     if (!note || note.hit || note.type === 'end_marker' || isNaN(note.time)) return;
@@ -737,13 +727,11 @@
                         ctx.beginPath(); 
                         ctx.arc(noteX, laneY, radius, 0, Math.PI * 2);
 
-                        // 画像アセット(don_note / ka_note)が正常にロードされている場合は画像を優先描画
                         if (isDon && imgDon.complete && imgDon.width > 0) {
                             ctx.drawImage(imgDon, noteX - radius, laneY - radius, radius * 2, radius * 2);
                         } else if (!isDon && imgKa.complete && imgKa.width > 0) {
                             ctx.drawImage(imgKa, noteX - radius, laneY - radius, radius * 2, radius * 2);
                         } else {
-                            // 画像がない場合の絶対防御ベクターシェーダーフォールバック
                             ctx.fillStyle = grad;
                             ctx.fill();
                             ctx.strokeStyle = '#ffffff';
@@ -755,16 +743,13 @@
                 });
             }
 
-            // パーティクル＆紙吹雪の更新と描画システム
             for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update();
                 particles[i].draw(ctx);
                 if (particles[i].life <= 0) particles.splice(i, 1);
             }
 
-            // コンボ・スコア・判定テキストのオーバーレイ表示
             if (gameState === 'playing') {
-                // スコア描画
                 ctx.save();
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 26px sans-serif';
@@ -773,12 +758,11 @@
                 ctx.fillText(`スコア: ${score}`, width * 0.05, laneY - laneHeight/2 - 35);
                 ctx.restore();
 
-                // コンボ描画
                 if (combo >= 3) {
                     ctx.save();
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    let pulse = Math.sin(performance.now() * 0.04) * 2; // 微小な脈動アニメ
+                    let pulse = Math.sin(performance.now() * 0.04) * 2;
                     ctx.fillStyle = '#ffaa00';
                     ctx.font = 'italic bold 44px sans-serif';
                     ctx.fillText(`${combo}`, hitX, laneY - 95 + pulse);
@@ -789,7 +773,6 @@
                     ctx.restore();
                 }
 
-                // 判定テキストアニメーション処理
                 for (let i = hitTexts.length - 1; i >= 0; i--) {
                     let ht = hitTexts[i];
                     ctx.save();
@@ -798,7 +781,6 @@
                     ctx.font = 'bold 38px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
-                    // 上昇フェードアウトエフェクト
                     ctx.fillText(ht.text, hitX, laneY - 140 - (1.0 - ht.life) * 25);
                     ctx.restore();
                     
@@ -808,13 +790,11 @@
             }
 
         } catch(e) {
-            // 【迎撃中枢】例外を完全吸収してブラックボックスへ格納、ゲームループの破綻を防ぐ
             lastErrorLog = e.message;
             console.error("【エラー自動迎撃】描画ループ内で例外を検知・防御しました: ", e.message);
         }
     }
 
-    // ゲームメイン描画ループを一発駆動
     draw();
 </script>
 
