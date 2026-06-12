@@ -19,13 +19,14 @@
 
         .bg-sub-screen { background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #415a77 100%) !important; }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        canvas { display: block; width: 100%; height: 100%; position: relative; z-index: 10; }
 
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             box-sizing: border-box; color: #fff;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            z-index: 20;
         }
         .hidden { display: none !important; }
 
@@ -83,8 +84,8 @@
         <div class="flash-text" id="btn-title-start">ドン！と叩くかクリックでスタート</div>
     </div>
 
-    <div id="screen-genre" class="screen bg-sub-screen hidden">
-        <h2 style="font-size: 2.2rem; margin-bottom: 20px;">ジャンルを えらぶ���ン！</h2>
+    <div id="screen-genre" class="screen hidden">
+        <h2 style="font-size: 2.2rem; margin-bottom: 20px;">ジャンルを えらぶドン！</h2>
         <div class="menu-container" id="genre-list">
             <div class="menu-card" data-target="jpop" style="background: linear-gradient(180deg, #ff79c6, #e056fd);">J-POP</div>
             <div class="menu-card" data-target="anime" style="background: linear-gradient(180deg, #ffb86c, #f0932b);">アニメ</div>
@@ -97,7 +98,7 @@
         </div>
     </div>
 
-    <div id="screen-song" class="screen bg-sub-screen hidden">
+    <div id="screen-song" class="screen hidden">
         <h2 style="font-size: 2.5rem; margin-bottom: 35px;">きょくを えらぶドン！</h2>
         <div class="menu-container" id="song-list">
             <div class="menu-card card-vocaloid active" data-action="play_hibana" id="card-song-vocaloid">ヒバナ<br><span style="font-size:0.95rem;color:#ffe57f;margin-top:10px;">★8 (おに)</span></div>
@@ -105,7 +106,7 @@
         </div>
     </div>
 
-    <div id="screen-config" class="screen bg-sub-screen hidden">
+    <div id="screen-config" class="screen hidden">
         <h2 style="font-size: 2.2rem; margin-bottom: 10px;">キー設定変更だドン！</h2>
         <p style="font-size: 1.1rem; color: #ffaa00; margin-bottom: 20px;">変えたい項目をクリックして、キーボードのキーを押してね！</p>
         
@@ -129,7 +130,7 @@
         </div>
     </div>
 
-    <div id="screen-result" class="screen bg-sub-screen hidden">
+    <div id="screen-result" class="screen hidden">
         <div class="result-box">
             <div class="result-title">演奏結果</div>
             <div id="res-song-name" style="font-size: 1.6rem; font-weight: bold; color: #00ffcc;">ヒバナ</div>
@@ -422,7 +423,7 @@
             parseTJA(tjaText);
 
         } catch(e) {
-            console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドしますドン！");
+            console.warn("【TJA迎撃フォールバック】外部TJAファイルが見つからないため、全自動で緊急用プレイ可能譜面（全150ノーツ）をビルドします");
             
             let mockNotes = [];
             let virtualTime = 1800;
@@ -467,9 +468,16 @@
     }
 
     function changeScreen(screenName) {
-        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-        const target = document.getElementById(`screen-${screenName}`);
-        if(target) target.classList.remove('hidden');
+        // ゲーム画面の場合は、全てのスクリーンを隠すだけ（canvasは表示のまま）
+        if (screenName === 'game') {
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        } else {
+            // その他のスクリーンの場合は通常通り
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            const target = document.getElementById(`screen-${screenName}`);
+            if(target) target.classList.remove('hidden');
+        }
+        
         currentScreen = screenName; activeMenuIndex = 0; configTarget = null;
         document.querySelectorAll('.config-item').forEach(b => b.classList.remove('waiting'));
         
@@ -499,7 +507,7 @@
             const target = item.getAttribute('data-target');
             if (target === 'config') changeScreen('config'); 
             else if (target === 'vocaloid') changeScreen('song');   
-            else alert(item.innerText + "の曲は今後追加予定だドン！今はボーカロイドかキー設定を選んでね。");
+            else alert(item.innerText + "の曲は今後追加予定だドン！");
         }
         else if (currentScreen === 'song') {
             const act = item.getAttribute('data-action');
@@ -528,21 +536,26 @@
         }
 
         const key = e.key.toLowerCase();
+        const hitX = width * 0.16; const laneY = height * 0.5;
 
-        if (gameState === 'playing' || currentScreen === 'title') {
-            const hitX = width * 0.16; const laneY = height * 0.5;
+        if (currentScreen === 'title') {
+            if (key === keys.donL || key === keys.donR || key === keys.kaL || key === keys.kaR) {
+                e.preventDefault();
+                initAudio().then(() => changeScreen('genre'));
+            }
+            return;
+        }
 
+        if (gameState === 'playing') {
             if (key === keys.donL || key === keys.donR) {
                 laneFlashes.don = 1.0; playSound('don');
-                if (currentScreen === 'title') { initAudio().then(() => changeScreen('genre')); return; }
-                if (gameState === 'playing') checkHit('don', hitX, laneY);
+                checkHit('don', hitX, laneY);
             }
             if (key === keys.kaL || key === keys.kaR) {
                 laneFlashes.ka = 1.0; playSound('ka');
-                if (gameState === 'playing') checkHit('ka', hitX, laneY);
+                checkHit('ka', hitX, laneY);
             }
-        } else {
-            if(currentMenuItems.length === 0) return;
+        } else if (currentMenuItems.length > 0) {
             if (key === keys.kaL) { activeMenuIndex = (activeMenuIndex - 1 + currentMenuItems.length) % currentMenuItems.length; updateMenuVisuals(); }
             else if (key === keys.kaR) { activeMenuIndex = (activeMenuIndex + 1) % currentMenuItems.length; updateMenuVisuals(); }
             else if (key === keys.donL || key === keys.donR) { triggerMenuClickAction(currentMenuItems[activeMenuIndex]); }
@@ -654,6 +667,7 @@
                 isGoGoTime = currentlyInGoGo;
             }
 
+            // Canvas描画：常に実行（ゲーム中またはタイトル）
             ctx.clearRect(0, 0, width, height);
             const laneY = height * 0.5; const laneHeight = 150; const hitX = width * 0.16; 
 
